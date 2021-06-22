@@ -69,6 +69,18 @@ bool IntrinsicLoweringPass::runOnBasicBlock(llvm::BasicBlock &BB, llvm::Module &
 			modified = true;
 			break;
 		}
+		case llvm::Intrinsic::is_constant: {
+        		if(auto* constant = llvm::ConstantFoldInstruction(I, I->getModule()->getDataLayout()))
+          			I->replaceAllUsesWith(constant);
+        		else
+          			I->replaceAllUsesWith(llvm::ConstantInt::getFalse(I->getType()));
+        		I->eraseFromParent();
+        		modified = true;
+        		break;
+		}
+		case llvm::Intrinsic::fabs:
+        		break;
+        	case llvm::Intrinsic::returnaddress:
 		default:
 			IL->LowerIntrinsicCall(I);
 			modified = true;
