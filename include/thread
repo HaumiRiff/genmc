@@ -1,1 +1,177 @@
-#error "<thread> is currently unimplemented!"
+
+#ifndef __THREADS__
+#define __THREADS__
+
+#include <pthread.h>
+#include <utility>
+#include <tuple>
+#include <memory>
+
+namespace std {
+
+    class thread {
+    public:
+
+//state
+        struct _State {
+            virtual ~_State();
+
+            virtual void _M_run() = 0;
+        };
+
+        using _State_ptr = unique_ptr<_State>;
+        typedef pthread_t native_handle_type;
+
+//id
+        class id {
+
+            native_handle_type _M_thread;
+        public:
+            id() noexcept: _M_thread() {}
+
+            explicit
+            id(native_handle_type __id) : _M_thread(__id) {}
+
+        private:
+            friend class thread;
+
+            friend bool
+            operator==(thread::id __x, thread::id __y) noexcept;
+
+            friend bool
+            operator<(thread::id __x, thread::id __y) noexcept;
+
+            template<class _CharT, class _Traits>
+            friend basic_ostream<_CharT, _Traits> &
+            operator<<(basic_ostream<_CharT, _Traits> &__out, thread::id __id);
+        };
+
+//id
+    private:
+        id _M_id;
+
+
+        static void *execute_native_thread_routine(void *__p) {
+            _State_ptr __t{static_cast<_State *>(__p)};
+            __t->_M_run();
+            return nullptr;
+        }
+
+
+        //_M_start
+        void _M_start_thread(_State_ptr state, void (*)()) {
+            int err = pthread_create(&_M_id._M_thread, nullptr,
+                                     &execute_native_thread_routine,
+                                     state.get());
+            // if (err)
+            //   __throw_system_error(err);
+            state.release();
+        }
+
+//Invoker
+        template<typename _Tuple>
+        struct _Invoker {
+            _Tuple _M_t;
+
+            template<size_t _Index>
+            static __tuple_element_t<_Index, _Tuple> &&
+            _S_declval();
+
+            template<size_t... _Ind>
+            auto
+            _M_invoke(_Index_tuple<_Ind...>)
+            noexcept(noexcept(__invoke(_S_declval<_Ind>()...)))
+            -> decltype(__invoke(_S_declval<_Ind>()...)) { return __invoke(get<_Ind>(move(_M_t))...); }
+
+            using _Indices
+            = typename _Build_index_tuple<tuple_size<_Tuple>::value>::__type;
+
+            auto
+            operator()()
+            noexcept(noexcept(declval<_Invoker &>()._M_invoke(_Indices())))
+            -> decltype(declval<_Invoker &>()._M_invoke(_Indices())) { return _M_invoke(_Indices()); }
+        };
+
+//invoker_type
+        template<typename... _Tp>
+        using __invoker_type
+        = _Invoker<decltype(make_tuple(declval<_Tp>()...))>;
+
+//make_invoke
+        template<typename _Callable, typename... _Args>
+        static __invoker_type<_Callable, _Args...>
+        __make_invoker(_Callable &&__callable, _Args &&... __args) {
+            return {{
+                            make_tuple(forward<_Callable>(__callable),
+                                       forward<_Args>(__args)...)
+                    }};
+        }
+
+
+//State_Impl
+        template<typename _Callable>
+        struct _State_impl : public _State {
+            _Callable _M_func;
+
+            _State_impl(_Callable &&__f) : _M_func(std::forward<_Callable>(__f)) {}
+
+            void
+            _M_run() { _M_func(); }
+        };
+
+//S_make
+        template<typename _Callable>
+        static _State_ptr
+        _S_make_state(_Callable &&__f) {
+            using _Impl = _State_impl<_Callable>;
+            return _State_ptr{new _Impl{std::forward<_Callable>(__f)}};
+        }
+
+    public:
+        template<typename _Callable, typename... _Args>
+        thread(_Callable &&__f, _Args &&... __args) {
+            _M_start_thread(_S_make_state(
+                    __make_invoker(std::forward<_Callable>(__f),
+                                   std::forward<_Args>(__args)...)),
+                            nullptr);
+        }
+
+        bool
+        joinable() const noexcept { return !((id) _M_id == id()); }
+
+        //TODO implement std::terminate
+        ~thread() {
+            //if (joinable())
+            //  std::terminate();
+        }
+
+        void join() {
+            // int __e = EINVAL;
+            int __e;
+            if (joinable())
+                __e = __VERIFIER_thread_join(_M_id._M_thread, 0);
+            //if (__e)
+            //__throw_system_error(__e);
+            _M_id = id();
+        }
+
+        void detach() {
+            int __e;
+            //  int __e = EINVAL;
+            if (joinable())
+                __e = pthread_detach(_M_id._M_thread);
+            //if (__e)
+            //__throw_system_error(__e);
+            _M_id = id();
+        }
+    };
+
+    inline bool
+    operator==(thread::id __x, thread::id __y) noexcept {
+        return __x._M_thread == __y._M_thread;
+    }
+
+}//namespace std
+
+#endif /* __THREADS__ */
+
