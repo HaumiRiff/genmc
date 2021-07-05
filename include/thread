@@ -139,29 +139,23 @@ namespace std {
         bool
         joinable() const noexcept { return !((id) _M_id == id()); }
 
-        //TODO implement std::terminate
+        //std::terminate implementation is not needed
         ~thread() {
-            //if (joinable())
-            //  std::terminate();
+             if (joinable())
+                  __VERIFIER_thread_exit (0);
         }
 
         void join() {
-            // int __e = EINVAL;
             int __e;
             if (joinable())
                 __e = __VERIFIER_thread_join(_M_id._M_thread, 0);
-            //if (__e)
-            //__throw_system_error(__e);
             _M_id = id();
         }
 
         void detach() {
             int __e;
-            //  int __e = EINVAL;
             if (joinable())
                 __e = pthread_detach(_M_id._M_thread);
-            //if (__e)
-            //__throw_system_error(__e);
             _M_id = id();
         }
     };
