@@ -50,7 +50,17 @@ GenMCDriver::GenMCDriver(std::unique_ptr<Config> conf, std::unique_ptr<llvm::Mod
 	LLVMModule::transformLLVMModule(*mod, getConf(), MI);
 	if (userConf->transformFile != "")
 		LLVMModule::printLLVMModule(*mod, userConf->transformFile);
-
+		
+	/*
+	 * Make sure we can resolve symbols in the program as well. We use 0
+	 * as an argument in order to load the program, not a library. This
+	 * is useful as it allows the executions of external functions in the
+	 * user code.
+	 */
+	std::string ErrorStr;
+	if (llvm::sys::DynamicLibrary::LoadLibraryPermanently(0, &ErrorStr))
+		WARN("Could not resolve symbols in the program: " + ErrorStr);	
+		
 	/* Create an interpreter for the program's instructions */
 	EE = std::unique_ptr<llvm::Interpreter>((llvm::Interpreter *)
 		llvm::Interpreter::create(std::move(mod), std::move(MI), this, getConf(), &buf));
@@ -77,16 +87,6 @@ GenMCDriver::GenMCDriver(std::unique_ptr<Config> conf, std::unique_ptr<llvm::Mod
 		std::copy_if(res.begin(), res.end(), std::back_inserter(toVerifyLibs),
 			     [](Library &l){ return l.getType() == ToVerify; });
 	}
-
-	/*
-	 * Make sure we can resolve symbols in the program as well. We use 0
-	 * as an argument in order to load the program, not a library. This
-	 * is useful as it allows the executions of external functions in the
-	 * user code.
-	 */
-	std::string ErrorStr;
-	if (llvm::sys::DynamicLibrary::LoadLibraryPermanently(0, &ErrorStr))
-		WARN("Could not resolve symbols in the program: " + ErrorStr);
 }
 
 GenMCDriver::~GenMCDriver() = default;
@@ -673,7 +673,7 @@ llvm::GenericValue GenMCDriver::getWriteValue(Event write,
 	auto *wLab = static_cast<const WriteLabel *>(lab);
 
 	/* If the type of the R and the W are the same, we are done */
-	if (wLab->getType() == typ)
+	if(wLab->getType()->getTypeID() == typ->getTypeID())
 		return wLab->getVal();
 
 	/* Otherwise, make sure that we return a value of the expected type.
