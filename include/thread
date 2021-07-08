@@ -82,12 +82,31 @@ void sleep_for(const chrono::duration<Rep, Period>& rel_time);
 #include <threading_support>
 #include <_tuple>
 #include <errno.h>
+#include <vector>
+#include <__memory/shared_ptr.h>
 
 #define _VSTD std
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #pragma GCC system_header
 #endif
+
+#if !(__has_feature(cxx_strong_enums))
+#define _LIBCPP_HAS_NO_STRONG_ENUMS
+#endif
+
+#ifdef _LIBCPP_HAS_NO_STRONG_ENUMS
+#  define _LIBCPP_DECLARE_STRONG_ENUM(x) struct _LIBCPP_TYPE_VIS x { enum __lx
+#  define _LIBCPP_DECLARE_STRONG_ENUM_EPILOG(x) \
+     __lx __v_; \
+     _LIBCPP_INLINE_VISIBILITY x(__lx __v) : __v_(__v) {} \
+     _LIBCPP_INLINE_VISIBILITY explicit x(int __v) : __v_(static_cast<__lx>(__v)) {} \
+     _LIBCPP_INLINE_VISIBILITY operator int() const {return __v_;} \
+     };
+#else  // _LIBCPP_HAS_NO_STRONG_ENUMS
+#  define _LIBCPP_DECLARE_STRONG_ENUM(x) enum class _LIBCPP_ENUM_VIS x
+#  define _LIBCPP_DECLARE_STRONG_ENUM_EPILOG(x)
+#endif // _LIBCPP_HAS_NO_STRONG_ENUMS
 
 _LIBCPP_PUSH_MACROS
 //#include <__undef_macros>
@@ -252,7 +271,7 @@ class _LIBCPP_TYPE_VIS thread
 #endif
         ~thread(){
             if (!__libcpp_thread_isnull(&__t_))
-                __VERIFIER_thread_exit (0);
+                __VERIFIER_thread_exit(0);
         };
 
         _LIBCPP_INLINE_VISIBILITY
@@ -276,27 +295,25 @@ class _LIBCPP_TYPE_VIS thread
         bool joinable() const _NOEXCEPT { return !__libcpp_thread_isnull(&__t_); }
         void join() {
             int ec = EINVAL;
-            if (!__libcpp_thread_isnull(&__t_))
-            {
+            if (!__libcpp_thread_isnull(&__t_)) {
                 ec = __libcpp_thread_join(&__t_);
                 if (ec == 0)
                     __t_ = _LIBCPP_NULL_THREAD;
             }
 
             if (ec);
-             //   __throw_system_error(ec, "thread::join failed");
+            //   __throw_system_error(ec, "thread::join failed");
         };
         void detach() {
             int ec = EINVAL;
-            if (!__libcpp_thread_isnull(&__t_))
-            {
+            if (!__libcpp_thread_isnull(&__t_)) {
                 ec = __libcpp_thread_detach(&__t_);
                 if (ec == 0)
                     __t_ = _LIBCPP_NULL_THREAD;
             }
 
             if (ec);
-              //  __throw_system_error(ec, "thread::detach failed");
+            //  __throw_system_error(ec, "thread::detach failed");
         };
         _LIBCPP_INLINE_VISIBILITY
         id get_id() const _NOEXCEPT { return __libcpp_thread_get_id(&__t_); }
@@ -438,6 +455,183 @@ namespace this_thread {
 }
 
 }  // this_thread
+////////////////////////////////////////////////////////////////////////////////////
+
+//enum class future_errc
+enum class future_errc {
+    future_already_retrieved = 1,
+    promise_already_satisfied,
+    no_state,
+    broken_promise
+};
+//_LIBCPP_DECLARE_STRONG_ENUM_EPILOG(future_errc)
+
+//enum class future_status
+enum class future_status {
+    ready,
+    timeout,
+    deferred
+};
+
+//_LIBCPP_DECLARE_STRONG_ENUM_EPILOG(future_status)
+
+class _LIBCPP_TYPE_VIS __assoc_sub_state
+
+: public __shared_count
+{
+protected:
+exception_ptr __exception_;
+mutable mutex __mut_;
+mutable condition_variable __cv_;
+unsigned __state_;
+
+virtual void __on_zero_shared()
+
+_NOEXCEPT;
+
+void __sub_wait(unique_lock <mutex> &__lk);
+
+public:
+enum {
+    __constructed = 1,
+    __future_attached = 2,
+    ready = 4,
+    deferred = 8
+};
+
+_LIBCPP_INLINE_VISIBILITY
+__assoc_sub_state()
+
+: __state_(0) {
+}
+
+_LIBCPP_INLINE_VISIBILITY
+bool __has_value() const { return (__state_ & __constructed) || (__exception_ != nullptr); }
+
+_LIBCPP_INLINE_VISIBILITY
+void __attach_future() {
+    lock_guard <mutex> __lk(__mut_);
+    bool __has_future_attached = (__state_ & __future_attached) != 0;
+    if (__has_future_attached);
+    //        __throw_future_error(future_errc::future_already_retrieved);
+    this->__add_shared();
+    __state_ |= __future_attached;
+}
+
+_LIBCPP_INLINE_VISIBILITY
+void __set_deferred() { __state_ |= deferred; }
+
+void __make_ready();
+
+_LIBCPP_INLINE_VISIBILITY
+bool __is_ready() const { return (__state_ & ready) != 0; }
+
+void set_value();
+
+void set_value_at_thread_exit();
+
+void set_exception(exception_ptr __p);
+
+void set_exception_at_thread_exit(exception_ptr __p);
+
+void copy();
+
+void wait();
+
+template<class _Rep, class _Period>
+future_status
+        _LIBCPP_INLINE_VISIBILITY
+
+wait_for(const chrono::duration <_Rep, _Period> &__rel_time) const;
+
+template<class _Clock, class _Duration>
+_LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
+        future_status
+
+wait_until(const chrono::time_point <_Clock, _Duration> &__abs_time) const;
+
+virtual void __execute();
+
+};
+// __thread_struct_imp
+
+template<class T>
+class _LIBCPP_HIDDEN __hidden_allocator
+        {
+                public:
+                typedef T  value_type;
+
+                T* allocate(size_t __n)
+                { return static_cast<T *>(::operator new(__n * sizeof(T))); }
+                void deallocate(T* __p, size_t) { ::operator delete(static_cast<void *>(__p)); }
+
+                size_t max_size() const { return size_t(~0) / sizeof(T); }
+        };
+
+class _LIBCPP_HIDDEN __thread_struct_imp
+        {
+                typedef vector<__assoc_sub_state*,
+                __hidden_allocator<__assoc_sub_state*> > _AsyncStates;
+                typedef vector<pair<condition_variable*, mutex*>,
+                __hidden_allocator<pair<condition_variable*, mutex*> > > _Notify;
+
+                _AsyncStates async_states_;
+                _Notify notify_;
+
+                __thread_struct_imp(const __thread_struct_imp&);
+                __thread_struct_imp& operator=(const __thread_struct_imp&);
+                public:
+                __thread_struct_imp() {}
+                ~__thread_struct_imp();
+
+                void notify_all_at_thread_exit(condition_variable* cv, mutex* m);
+                void __make_ready_at_thread_exit(__assoc_sub_state* __s);
+        };
+
+__thread_struct_imp::~__thread_struct_imp() {
+    for (_Notify::iterator i = notify_.begin(), e = notify_.end();
+         i != e; ++i) {
+        i->second->unlock();
+        i->first->notify_all();
+    }
+    for (_AsyncStates::iterator i = async_states_.begin(), e = async_states_.end();
+         i != e; ++i) {
+        (*i)->__make_ready();
+        (*i)->__release_shared();
+    }
+}
+
+void
+__thread_struct_imp::notify_all_at_thread_exit(condition_variable *cv, mutex *m) {
+    notify_.push_back(pair<condition_variable *, mutex *>(cv, m));
+}
+
+void
+__thread_struct_imp::__make_ready_at_thread_exit(__assoc_sub_state *__s) {
+    async_states_.push_back(__s);
+    __s->__add_shared();
+}
+
+// __thread_struct
+
+__thread_struct::__thread_struct()
+        : __p_(new __thread_struct_imp) {
+}
+
+__thread_struct::~__thread_struct() {
+    delete __p_;
+}
+
+void
+__thread_struct::notify_all_at_thread_exit(condition_variable *cv, mutex *m) {
+    __p_->notify_all_at_thread_exit(cv, m);
+}
+
+void
+__thread_struct::__make_ready_at_thread_exit(__assoc_sub_state *__s) {
+    __p_->__make_ready_at_thread_exit(__s);
+}
+//////////////////////////////////////////////////////////////////////////////////
 
 _LIBCPP_END_NAMESPACE_STD
 

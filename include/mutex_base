@@ -62,6 +62,63 @@
 #  endif
 #endif
 
+#if defined(_LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS)
+#  if defined(__clang__) && __has_attribute(acquire_capability)
+// Work around the attribute handling in clang.  When both __declspec and
+// __attribute__ are present, the processing goes awry preventing the definition
+// of the types.
+#    if !defined(_LIBCPP_OBJECT_FORMAT_COFF)
+#      define _LIBCPP_HAS_THREAD_SAFETY_ANNOTATIONS
+#    endif
+#  endif
+#endif
+
+// The _LIBCPP_NODISCARD_ATTRIBUTE should only be used to define other
+// NODISCARD macros to the correct attribute.
+#if __has_cpp_attribute(nodiscard) || defined(_LIBCPP_COMPILER_MSVC)
+#  define _LIBCPP_NODISCARD_ATTRIBUTE [[nodiscard]]
+#elif defined(_LIBCPP_COMPILER_CLANG_BASED) && !defined(_LIBCPP_CXX03_LANG)
+#  define _LIBCPP_NODISCARD_ATTRIBUTE [[clang::warn_unused_result]]
+#else
+// We can't use GCC's [[gnu::warn_unused_result]] and
+// __attribute__((warn_unused_result)), because GCC does not silence them via
+// (void) cast.
+#  define _LIBCPP_NODISCARD_ATTRIBUTE
+#endif
+
+// _LIBCPP_NODISCARD_EXT may be used to apply [[nodiscard]] to entities not
+// specified as such as an extension.
+#if defined(_LIBCPP_ENABLE_NODISCARD) && !defined(_LIBCPP_DISABLE_NODISCARD_EXT)
+#  define _LIBCPP_NODISCARD_EXT _LIBCPP_NODISCARD_ATTRIBUTE
+#else
+#  define _LIBCPP_NODISCARD_EXT
+#endif
+
+#if !defined(_LIBCPP_DISABLE_NODISCARD_AFTER_CXX17) && \
+    (_LIBCPP_STD_VER > 17 || defined(_LIBCPP_ENABLE_NODISCARD))
+#  define _LIBCPP_NODISCARD_AFTER_CXX17 _LIBCPP_NODISCARD_ATTRIBUTE
+#else
+#  define _LIBCPP_NODISCARD_AFTER_CXX17
+#endif
+
+#ifdef _LIBCPP_CXX03_LANG
+#  define _LIBCPP_EQUAL_DELETE
+#else
+#  define _LIBCPP_EQUAL_DELETE = delete
+#endif
+
+#ifdef _LIBCPP_HAS_THREAD_SAFETY_ANNOTATIONS
+#   define _LIBCPP_THREAD_SAFETY_ANNOTATION(x) __attribute__((x))
+#else
+#   define _LIBCPP_THREAD_SAFETY_ANNOTATION(x)
+#endif
+
+#if __has_attribute(require_constant_initialization)
+#  define _LIBCPP_SAFE_STATIC __attribute__((__require_constant_initialization__))
+#else
+#  define _LIBCPP_SAFE_STATIC
+#endif
+
 
 #define _LIBCPP_TYPE_VIS __attribute__ ((__visibility__("default")))
 #define _LIBCPP_TLS_DESTRUCTOR_CC
@@ -114,7 +171,7 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 /* _LIBCPP_INLINE_VAR */ constexpr try_to_lock_t try_to_lock = try_to_lock_t();
 /* _LIBCPP_INLINE_VAR */ constexpr adopt_lock_t adopt_lock = adopt_lock_t();
 
-    enum cv_status//_LIBCPP_DECLARE_STRONG_ENUM(cv_status)
+    enum class cv_status//_LIBCPP_DECLARE_STRONG_ENUM(cv_status)
     {
         no_timeout,
         timeout
@@ -342,6 +399,33 @@ _LIBCPP_BEGIN_NAMESPACE_STD
         template<class _Clock>
         void __do_timed_wait(unique_lock<mutex> &__lk,
                              chrono::time_point <_Clock, chrono::nanoseconds>) _NOEXCEPT;
+    };
+
+    template<class _Mutex>
+    class _LIBCPP_TEMPLATE_VIS _LIBCPP_THREAD_SAFETY_ANNOTATION(scoped_lockable)
+    lock_guard {
+    public:
+        typedef _Mutex mutex_type;
+
+    private:
+        mutex_type &__m_;
+    public:
+
+        _LIBCPP_NODISCARD_EXT _LIBCPP_INLINE_VISIBILITY
+        explicit lock_guard(mutex_type &__m) _LIBCPP_THREAD_SAFETY_ANNOTATION(acquire_capability(__m))
+                : __m_(__m) { __m_.lock(); }
+
+        _LIBCPP_NODISCARD_EXT _LIBCPP_INLINE_VISIBILITY
+        lock_guard(mutex_type &__m, adopt_lock_t) _LIBCPP_THREAD_SAFETY_ANNOTATION(requires_capability(__m))
+                : __m_(__m) {}
+
+        _LIBCPP_INLINE_VISIBILITY
+        ~lock_guard() _LIBCPP_THREAD_SAFETY_ANNOTATION(release_capability()) { __m_.unlock(); }
+
+    private:
+        lock_guard(lock_guard const &) _LIBCPP_EQUAL_DELETE;
+
+        lock_guard &operator=(lock_guard const &) _LIBCPP_EQUAL_DELETE;
     };
 
 _LIBCPP_END_NAMESPACE_STD
