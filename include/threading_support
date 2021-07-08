@@ -1,0 +1,181 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_THREADING_SUPPORT
+#define _LIBCPP_THREADING_SUPPORT
+
+#define _NOEXCEPT noexcept
+#define _LIBCPP_CONSTEXPR constexpr
+#define _LIBCPP_NULL_THREAD ((__libcpp_thread_t()))
+
+/////push and pop macro
+#if defined(_LIBCPP_COMPILER_IBM)
+#define _LIBCPP_HAS_NO_PRAGMA_PUSH_POP_MACRO
+#endif
+
+#if defined(_LIBCPP_HAS_NO_PRAGMA_PUSH_POP_MACRO)
+#  define _LIBCPP_PUSH_MACROS
+#  define _LIBCPP_POP_MACROS
+#else
+// Don't warn about macro conflicts when we can restore them at the
+// end of the header.
+#  ifndef _LIBCPP_DISABLE_MACRO_CONFLICT_WARNINGS
+#    define _LIBCPP_DISABLE_MACRO_CONFLICT_WARNINGS
+#  endif
+#  if defined(_LIBCPP_COMPILER_MSVC)
+#    define _LIBCPP_PUSH_MACROS    \
+       __pragma(push_macro("min")) \
+       __pragma(push_macro("max"))
+#    define _LIBCPP_POP_MACROS     \
+       __pragma(pop_macro("min"))  \
+       __pragma(pop_macro("max"))
+#  else
+#    define _LIBCPP_PUSH_MACROS        \
+       _Pragma("push_macro(\"min\")")  \
+       _Pragma("push_macro(\"max\")")
+#    define _LIBCPP_POP_MACROS         \
+       _Pragma("pop_macro(\"min\")")   \
+       _Pragma("pop_macro(\"max\")")
+#  endif
+
+#endif // defined(_LIBCPP_HAS_NO_PRAGMA_PUSH_POP_MACRO)
+
+#ifndef _LIBCPP_TEMPLATE_VIS
+#  if !defined(_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS)
+#    if __has_attribute(__type_visibility__)
+#      define _LIBCPP_TEMPLATE_VIS __attribute__ ((__type_visibility__("default")))
+#    else
+#      define _LIBCPP_TEMPLATE_VIS __attribute__ ((__visibility__("default")))
+#    endif
+#  else
+#    define _LIBCPP_TEMPLATE_VIS
+#  endif
+#endif
+
+#define _LIBCPP_INLINE_VISIBILITY __attribute__((visibility("inline")))
+#define _LIBCPP_TYPE_VIS __attribute__ ((__visibility__("default")))
+#define _LIBCPP_TLS_DESTRUCTOR_CC
+#    define _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS inline _LIBCPP_HIDDEN
+#define _LIBCPP_HIDDEN __attribute__ ((__visibility__("hidden")))
+#define _LIBCPP_FUNC_VIS __attribute__ ((__visibility__("default")))
+#define _LIBCPP_THREAD_ABI_VISIBILITY inline _LIBCPP_INLINE_VISIBILITY
+
+#define _LIBCPP_BEGIN_NAMESPACE_STD namespace std {
+#define _LIBCPP_END_NAMESPACE_STD   }
+#define _VSTD std
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+#include <pthread.h>
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+    typedef pthread_key_t __libcpp_tls_key;
+    typedef pthread_t __libcpp_thread_t;
+    typedef pthread_t __libcpp_thread_id;
+
+    class _LIBCPP_TYPE_VIS thread;
+
+    class _LIBCPP_TYPE_VIS __thread_id;
+
+    _LIBCPP_THREAD_ABI_VISIBILITY
+    bool __libcpp_thread_isnull(const __libcpp_thread_t *__t);
+
+    _LIBCPP_THREAD_ABI_VISIBILITY
+    bool __libcpp_thread_id_equal(__libcpp_thread_id t1, __libcpp_thread_id t2);
+
+    _LIBCPP_THREAD_ABI_VISIBILITY
+    bool __libcpp_thread_id_less(__libcpp_thread_id t1, __libcpp_thread_id t2);
+
+    _LIBCPP_THREAD_ABI_VISIBILITY
+    int __libcpp_thread_create(__libcpp_thread_t *__t, void *(*__func)(void *),
+                               void *__arg){
+        return pthread_create(__t, nullptr, __func, __arg);
+    };
+
+    _LIBCPP_THREAD_ABI_VISIBILITY
+    void *__libcpp_tls_get(__libcpp_tls_key __key);
+
+    _LIBCPP_THREAD_ABI_VISIBILITY
+    int __libcpp_tls_create(__libcpp_tls_key *__key,
+                            void(_LIBCPP_TLS_DESTRUCTOR_CC *__at_exit)(void *));
+
+    _LIBCPP_THREAD_ABI_VISIBILITY
+    __libcpp_thread_id __libcpp_thread_get_id(const __libcpp_thread_t *__t);
+
+    _LIBCPP_THREAD_ABI_VISIBILITY
+    int __libcpp_thread_join(__libcpp_thread_t *__t){
+        return  __VERIFIER_thread_join(*__t, 0);
+    };
+
+    _LIBCPP_THREAD_ABI_VISIBILITY
+    int __libcpp_thread_detach(__libcpp_thread_t *__t){
+        return pthread_detach(*__t);
+    };
+
+    _LIBCPP_THREAD_ABI_VISIBILITY
+    void __libcpp_thread_yield(){
+        int e = pthread_yield();
+    };
+
+    namespace this_thread {
+
+        _LIBCPP_INLINE_VISIBILITY __thread_id get_id() _NOEXCEPT;
+
+    }  // this_thread
+    class _LIBCPP_TEMPLATE_VIS __thread_id {
+        // FIXME: pthread_t is a pointer on Darwin but a long on Linux.
+        // NULL is the no-thread value on Darwin.  Someone needs to check
+        // on other platforms.  We assume 0 works everywhere for now.
+        __libcpp_thread_id __id_;
+
+    public:
+        _LIBCPP_INLINE_VISIBILITY
+        __thread_id() _NOEXCEPT: __id_(0) {}
+
+        friend _LIBCPP_INLINE_VISIBILITY
+        bool operator==(__thread_id __x, __thread_id __y) _NOEXCEPT { // don't pass id==0 to underlying routines
+            if (__x.__id_ == 0) return __y.__id_ == 0;
+            if (__y.__id_ == 0) return false;
+            return __libcpp_thread_id_equal(__x.__id_, __y.__id_);
+        }
+
+        friend _LIBCPP_INLINE_VISIBILITY
+        bool operator!=(__thread_id __x, __thread_id __y) _NOEXCEPT { return !(__x == __y); }
+
+        friend _LIBCPP_INLINE_VISIBILITY
+        bool operator<(__thread_id __x, __thread_id __y) _NOEXCEPT { // id==0 is always less than any other thread_id
+            if (__x.__id_ == 0) return __y.__id_ != 0;
+            if (__y.__id_ == 0) return false;
+            return __libcpp_thread_id_less(__x.__id_, __y.__id_);
+        }
+
+        _LIBCPP_INLINE_VISIBILITY
+        void __reset() { __id_ = 0; }
+
+    private:
+        _LIBCPP_INLINE_VISIBILITY
+        __thread_id(__libcpp_thread_id __id) : __id_(__id) {}
+
+        friend __thread_id this_thread::get_id() _NOEXCEPT;
+
+        friend class _LIBCPP_TYPE_VIS thread;
+
+        friend struct _LIBCPP_TEMPLATE_VIS hash<__thread_id>;
+    };
+
+    typedef pthread_t __libcpp_thread_t;
+
+    template<>
+    struct hash<__thread_id>;
+
+_LIBCPP_END_NAMESPACE_STD
+
+
+#endif // _LIBCPP_THREADING_SUPPORT

@@ -1,0 +1,350 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP___MUTEX_BASE
+#define _LIBCPP___MUTEX_BASE
+
+#  ifndef _LIBCPP_DISABLE_MACRO_CONFLICT_WARNINGS
+#    define _LIBCPP_DISABLE_MACRO_CONFLICT_WARNINGS
+#  endif
+#  if defined(_LIBCPP_COMPILER_MSVC)
+#    define _LIBCPP_PUSH_MACROS    \
+       __pragma(push_macro("min")) \
+       __pragma(push_macro("max"))
+#    define _LIBCPP_POP_MACROS     \
+       __pragma(pop_macro("min"))  \
+       __pragma(pop_macro("max"))
+#  else
+#    define _LIBCPP_PUSH_MACROS        \
+       _Pragma("push_macro(\"min\")")  \
+       _Pragma("push_macro(\"max\")")
+#    define _LIBCPP_POP_MACROS         \
+       _Pragma("pop_macro(\"min\")")   \
+       _Pragma("pop_macro(\"max\")")
+#  endif
+
+#if !(__has_feature(cxx_strong_enums))
+#define _LIBCPP_HAS_NO_STRONG_ENUMS
+#endif
+
+#ifdef _LIBCPP_HAS_NO_STRONG_ENUMS
+#  define _LIBCPP_DECLARE_STRONG_ENUM(x) struct _LIBCPP_TYPE_VIS x { enum __lx
+#  define _LIBCPP_DECLARE_STRONG_ENUM_EPILOG(x) \
+     __lx __v_; \
+     _LIBCPP_INLINE_VISIBILITY x(__lx __v) : __v_(__v) {} \
+     _LIBCPP_INLINE_VISIBILITY explicit x(int __v) : __v_(static_cast<__lx>(__v)) {} \
+     _LIBCPP_INLINE_VISIBILITY operator int() const {return __v_;} \
+     };
+#else  // _LIBCPP_HAS_NO_STRONG_ENUMS
+#  define _LIBCPP_DECLARE_STRONG_ENUM(x) enum class _LIBCPP_ENUM_VIS x
+#  define _LIBCPP_DECLARE_STRONG_ENUM_EPILOG(x)
+#endif // _LIBCPP_HAS_NO_STRONG_ENUMS
+
+
+#define _LIBCPP_MUTEX_INITIALIZER {}
+#define _LIBCPP_CONDVAR_INITIALIZER {}
+
+#ifndef _LIBCPP_TEMPLATE_VIS
+#  if !defined(_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS)
+#    if __has_attribute(__type_visibility__)
+#      define _LIBCPP_TEMPLATE_VIS __attribute__ ((__type_visibility__("default")))
+#    else
+#      define _LIBCPP_TEMPLATE_VIS __attribute__ ((__visibility__("default")))
+#    endif
+#  else
+#    define _LIBCPP_TEMPLATE_VIS
+#  endif
+#endif
+
+
+#define _LIBCPP_TYPE_VIS __attribute__ ((__visibility__("default")))
+#define _LIBCPP_TLS_DESTRUCTOR_CC
+
+#define _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS inline _LIBCPP_HIDDEN
+#define _LIBCPP_HIDDEN __attribute__ ((__visibility__("hidden")))
+#define _LIBCPP_FUNC_VIS __attribute__ ((__visibility__("default")))
+
+#define _LIBCPP_THREAD_ABI_VISIBILITY inline _LIBCPP_INLINE_VISIBILITY
+
+#define _LIBCPP_BEGIN_NAMESPACE_STD namespace std {
+#define _LIBCPP_END_NAMESPACE_STD   }
+
+#define _LIBCPP_INLINE_VISIBILITY __attribute__((visibility("inline")))
+
+#define _NOEXCEPT noexcept
+#define _LIBCPP_CONSTEXPR constexpr
+
+#define _LIBCPP_NULL_THREAD ((__libcpp_thread_t()))
+#define _VSTD std
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+#include <pthread.h>
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+    struct _LIBCPP_TYPE_VIS defer_lock_t {
+        explicit defer_lock_t() = default;
+    };
+
+    struct _LIBCPP_TYPE_VIS try_to_lock_t {
+        explicit try_to_lock_t() = default;
+    };
+
+    struct _LIBCPP_TYPE_VIS adopt_lock_t {
+        explicit adopt_lock_t() = default;
+    };
+
+#if defined(_LIBCPP_CXX03_LANG) || defined(_LIBCPP_BUILDING_LIBRARY)
+
+    extern _LIBCPP_EXPORTED_FROM_ABI const defer_lock_t  defer_lock;
+    extern _LIBCPP_EXPORTED_FROM_ABI const try_to_lock_t try_to_lock;
+    extern _LIBCPP_EXPORTED_FROM_ABI const adopt_lock_t  adopt_lock;
+
+#else
+
+/* _LIBCPP_INLINE_VAR */ constexpr defer_lock_t defer_lock = defer_lock_t();
+/* _LIBCPP_INLINE_VAR */ constexpr try_to_lock_t try_to_lock = try_to_lock_t();
+/* _LIBCPP_INLINE_VAR */ constexpr adopt_lock_t adopt_lock = adopt_lock_t();
+
+    enum cv_status//_LIBCPP_DECLARE_STRONG_ENUM(cv_status)
+    {
+        no_timeout,
+        timeout
+    };
+
+//_LIBCPP_DECLARE_STRONG_ENUM_EPILOG(cv_status)
+    template<class _Mutex>
+    class _LIBCPP_TEMPLATE_VIS unique_lock {
+    public:
+        typedef _Mutex mutex_type;
+
+    private:
+        mutex_type *__m_;
+        bool __owns_;
+
+    public:
+        _LIBCPP_INLINE_VISIBILITY
+        unique_lock() _NOEXCEPT: __m_(nullptr), __owns_(false) {}
+
+        _LIBCPP_INLINE_VISIBILITY
+        explicit unique_lock(mutex_type &__m)
+                : __m_(_VSTD::addressof(__m)), __owns_(true) { __m_->lock(); }
+
+        _LIBCPP_INLINE_VISIBILITY
+        unique_lock(mutex_type &__m, defer_lock_t) _NOEXCEPT
+                : __m_(_VSTD::addressof(__m)), __owns_(false) {}
+
+        _LIBCPP_INLINE_VISIBILITY
+        unique_lock(mutex_type &__m, try_to_lock_t)
+                : __m_(_VSTD::addressof(__m)), __owns_(__m.try_lock()) {}
+
+        _LIBCPP_INLINE_VISIBILITY
+        unique_lock(mutex_type &__m, adopt_lock_t)
+                : __m_(_VSTD::addressof(__m)), __owns_(true) {}
+
+        template<class _Clock, class _Duration>
+        _LIBCPP_INLINE_VISIBILITY
+        unique_lock(mutex_type &__m, const chrono::time_point <_Clock, _Duration> &__t)
+                : __m_(_VSTD::addressof(__m)), __owns_(__m.try_lock_until(__t)) {}
+
+        template<class _Rep, class _Period>
+        _LIBCPP_INLINE_VISIBILITY
+        unique_lock(mutex_type &__m, const chrono::duration <_Rep, _Period> &__d)
+                : __m_(_VSTD::addressof(__m)), __owns_(__m.try_lock_for(__d)) {}
+
+        _LIBCPP_INLINE_VISIBILITY
+        ~unique_lock() {
+            if (__owns_)
+                __m_->unlock();
+        }
+
+    private:
+        unique_lock(unique_lock const &); // = delete;
+        unique_lock &operator=(unique_lock const &); // = delete;
+
+    public:
+        _LIBCPP_INLINE_VISIBILITY
+        unique_lock(unique_lock &&__u) _NOEXCEPT
+                : __m_(__u.__m_), __owns_(__u.__owns_) {
+            __u.__m_ = nullptr;
+            __u.__owns_ = false;
+        }
+
+        _LIBCPP_INLINE_VISIBILITY
+        unique_lock &operator=(unique_lock &&__u) _NOEXCEPT {
+            if (__owns_)
+                __m_->unlock();
+            __m_ = __u.__m_;
+            __owns_ = __u.__owns_;
+            __u.__m_ = nullptr;
+            __u.__owns_ = false;
+            return *this;
+        }
+
+        void lock();
+
+        bool try_lock();
+
+        template<class _Rep, class _Period>
+        bool try_lock_for(const chrono::duration <_Rep, _Period> &__d);
+
+        template<class _Clock, class _Duration>
+        bool try_lock_until(const chrono::time_point <_Clock, _Duration> &__t);
+
+        void unlock();
+
+        _LIBCPP_INLINE_VISIBILITY
+        void swap(unique_lock &__u) _NOEXCEPT {
+            _VSTD::swap(__m_, __u.__m_);
+            _VSTD::swap(__owns_, __u.__owns_);
+        }
+
+        _LIBCPP_INLINE_VISIBILITY
+        mutex_type *release() _NOEXCEPT {
+            mutex_type *__m = __m_;
+            __m_ = nullptr;
+            __owns_ = false;
+            return __m;
+        }
+
+        _LIBCPP_INLINE_VISIBILITY
+        bool owns_lock() const _NOEXCEPT { return __owns_; }
+
+        _LIBCPP_INLINE_VISIBILITY
+        explicit operator bool() const _NOEXCEPT { return __owns_; }
+
+        _LIBCPP_INLINE_VISIBILITY
+        mutex_type *mutex() const _NOEXCEPT { return __m_; }
+    };
+
+
+    typedef pthread_mutex_t __libcpp_mutex_t;
+    typedef pthread_cond_t __libcpp_condvar_t;
+
+
+    class _LIBCPP_TYPE_VIS mutex {
+        __libcpp_mutex_t __m_ = _LIBCPP_MUTEX_INITIALIZER;
+
+    public:
+        _LIBCPP_INLINE_VISIBILITY
+        _LIBCPP_CONSTEXPR mutex() = default;
+
+        mutex(const mutex &) = delete;
+
+        mutex &operator=(const mutex &) = delete;
+
+#if defined(_LIBCPP_HAS_TRIVIAL_MUTEX_DESTRUCTION)
+        ~mutex() = default;
+#else
+
+        ~mutex() _NOEXCEPT;
+
+#endif
+
+        void lock();
+
+        bool try_lock() _NOEXCEPT;
+
+        void unlock() _NOEXCEPT;
+
+        typedef __libcpp_mutex_t *native_handle_type;
+
+        _LIBCPP_INLINE_VISIBILITY native_handle_type native_handle() { return &__m_; }
+    };
+
+
+#endif
+
+    template<class _Mutex>
+    void unique_lock<_Mutex>::unlock() {
+        if (!__owns_);
+        // __throw_system_error(EPERM, "unique_lock::unlock: not locked");
+        __m_->unlock();
+        __owns_ = false;
+    }
+
+
+    class _LIBCPP_TYPE_VIS condition_variable {
+        __libcpp_condvar_t __cv_ = _LIBCPP_CONDVAR_INITIALIZER;
+    public:
+        _LIBCPP_INLINE_VISIBILITY
+        _LIBCPP_CONSTEXPR condition_variable() _NOEXCEPT = default;
+
+#ifdef _LIBCPP_HAS_TRIVIAL_CONDVAR_DESTRUCTION
+        ~condition_variable() = default;
+#else
+
+        ~condition_variable();
+
+#endif
+
+        condition_variable(const condition_variable &) = delete;
+
+        condition_variable &operator=(const condition_variable &) = delete;
+
+        void notify_one() _NOEXCEPT;
+
+        void notify_all() _NOEXCEPT;
+
+        void wait(unique_lock<mutex> &__lk) _NOEXCEPT;
+
+        template<class _Predicate>
+        _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
+        void wait(unique_lock<mutex> &__lk, _Predicate __pred);
+
+        template<class _Clock, class _Duration>
+        _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
+        cv_status
+        wait_until(unique_lock<mutex> &__lk,
+                   const chrono::time_point <_Clock, _Duration> &__t);
+
+        template<class _Clock, class _Duration, class _Predicate>
+        _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
+        bool
+        wait_until(unique_lock<mutex> &__lk,
+                   const chrono::time_point <_Clock, _Duration> &__t,
+                   _Predicate __pred);
+
+        template<class _Rep, class _Period>
+        _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
+        cv_status
+        wait_for(unique_lock<mutex> &__lk,
+                 const chrono::duration <_Rep, _Period> &__d);
+
+        template<class _Rep, class _Period, class _Predicate>
+        bool
+        _LIBCPP_INLINE_VISIBILITY
+        wait_for(unique_lock<mutex> &__lk,
+                 const chrono::duration <_Rep, _Period> &__d,
+                 _Predicate __pred);
+
+        typedef __libcpp_condvar_t *native_handle_type;
+
+        _LIBCPP_INLINE_VISIBILITY native_handle_type native_handle() { return &__cv_; }
+
+    private:
+        void __do_timed_wait(unique_lock<mutex> &__lk,
+                             chrono::time_point <chrono::system_clock, chrono::nanoseconds>) _NOEXCEPT;
+
+#if defined(_LIBCPP_HAS_COND_CLOCKWAIT)
+        void __do_timed_wait(unique_lock<mutex>& __lk,
+           chrono::time_point<chrono::steady_clock, chrono::nanoseconds>) _NOEXCEPT;
+#endif
+
+        template<class _Clock>
+        void __do_timed_wait(unique_lock<mutex> &__lk,
+                             chrono::time_point <_Clock, chrono::nanoseconds>) _NOEXCEPT;
+    };
+
+_LIBCPP_END_NAMESPACE_STD
+
+
+#endif  // _LIBCPP___MUTEX_BASE
