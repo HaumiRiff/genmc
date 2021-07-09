@@ -49,9 +49,6 @@ void promoteMemCpy(IRBuilder<> &builder, Value *dst, Value *src,
 void promoteMemSet(IRBuilder<> &builder, Value *dst, Value *argVal,
 		   const std::vector<Value *> &args, Type *typ)
 {
-	if(PointerType* p = dyn_cast<PointerType>(typ))
-		typ = p->getElementType();
-		
 	BUG_ON(!typ->isIntegerTy());
 	BUG_ON(!isa<ConstantInt>(argVal));
 
