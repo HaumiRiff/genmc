@@ -63,7 +63,24 @@ struct __void_ty { typedef void type; };
     template <class _Tp, class = void> struct NAME : false_type { };    \
     template <class _Tp>               struct NAME<_Tp, typename __void_ty<typename _Tp:: PROPERTY >::type> : true_type { }
 
+// remove_reference
 
+#if __has_keyword(__remove_reference)
+
+template<class _Tp>
+struct _LIBCPP_TEMPLATE_VIS remove_reference { typedef __remove_reference(_Tp) type; };
+
+#else // __has_keyword(__remove_reference)
+
+template <class _Tp> struct _LIBCPP_TEMPLATE_VIS remove_reference        {typedef _LIBCPP_NODEBUG_TYPE _Tp type;};
+template <class _Tp> struct _LIBCPP_TEMPLATE_VIS remove_reference<_Tp&>  {typedef _LIBCPP_NODEBUG_TYPE _Tp type;};
+template <class _Tp> struct _LIBCPP_TEMPLATE_VIS remove_reference<_Tp&&> {typedef _LIBCPP_NODEBUG_TYPE _Tp type;};
+
+#if _LIBCPP_STD_VER > 11
+template <class _Tp> using remove_reference_t = typename remove_reference<_Tp>::type;
+#endif
+
+#endif // __has_keyword(__remove_reference)
 // __pointer
 	_LIBCPP_ALLOCATOR_TRAITS_HAS_XXX(__has_pointer, pointer);
 template <class _Tp, class _Alloc,
