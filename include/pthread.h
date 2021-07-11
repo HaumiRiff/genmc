@@ -32,19 +32,18 @@ extern "C"
 typedef struct { int __private; } pthread_attr_t;
 typedef struct { int __private; } pthread_barrier_t;
 typedef int pthread_barrierattr_t;
-typedef struct { int __private; } pthread_cond_t;
-typedef long pthread_condattr_t;
+ typedef struct { int __private; } pthread_cond_t;
+/* typedef long pthread_condattr_t; */
 typedef int pthread_key_t;
 typedef struct { int __private; } pthread_mutex_t;
 typedef long pthread_mutexattr_t;
-typedef int pthread_once_t;
+/* typedef int pthread_once_t; */
 /* typedef struct { int __private; } pthread_rwlock_t; */
 /* typedef struct { int __private; } pthread_rwlockattr_t; */
 /* typedef struct { int __private; } pthread_spinlock_t; */
 typedef long pthread_t;
 
 #define PTHREAD_MUTEX_INITIALIZER { 0 }
-#define PTHREAD_COND_INITIALIZER { 0 }
 
 /* Detach state.  */
 enum
@@ -134,28 +133,19 @@ enum
 /* Create a new thread, starting with execution of START-ROUTINE
    getting passed ARG.  Creation attributed come from ATTR.  The new
    handle is stored in *NEWTHREAD.  */
-
-
+/* extern int pthread_create (pthread_t *__restrict __newthread, */
+/* 			   const pthread_attr_t *__restrict __attr, */
+/* 			   void *(*__start_routine) (void *), */
+/* 			   void *__restrict __arg); */
 extern int __VERIFIER_thread_create (const pthread_attr_t *__restrict __attr,
 				     void *(*__start_routine) (void *),
 				     void *__restrict __arg);
-						     
-extern int pthread_create (pthread_t *__restrict __newthread, 
- 			   const pthread_attr_t *__restrict __attr, 
- 			   void *(*__start_routine) (void *), 
- 			   void *__restrict __arg) {
- 			   
- 	*(__newthread) = __VERIFIER_thread_create(__attr, __start_routine, __arg);
- 	return 0;			   
- }
- 
-/*
 #define pthread_create(newthread, attr, start_routine, arg) \
 ({									\
 	*(newthread) = __VERIFIER_thread_create(attr, start_routine, arg); \
 	0;								\
 })
-*/
+
 /* Terminate calling thread.  */
 /* extern void pthread_exit (void *__retval) __attribute__ ((__noreturn__)); */
 extern void __VERIFIER_thread_exit (void *__retval) __attribute__ ((__noreturn__));
@@ -304,8 +294,8 @@ extern int pthread_equal (pthread_t __thread1, pthread_t __thread2);
 /*    This function is similar to the POSIX `sched_yield' function but */
 /*    might be differently implemented in the case of a m-on-n thread */
 /*    implementation.  *\/ */
-extern int pthread_yield (void);
-#define sched_yield pthread_yield
+extern int pthread_yield (void) ;
+
 
 /* /\* Functions for handling initialization.  *\/ */
 
@@ -314,8 +304,8 @@ extern int pthread_yield (void);
 /*    same ONCE_CONTROL argument. ONCE_CONTROL must point to a static or */
 /*    extern variable initialized to PTHREAD_ONCE_INIT. */
 /*  *\/ */
- extern int pthread_once (pthread_once_t *__once_control,
- 			 void (*__init_routine) (void)); 
+/* extern int pthread_once (pthread_once_t *__once_control, */
+/* 			 void (*__init_routine) (void)) ; */
 
 
 /* /\* Functions for handling cancellation. */
@@ -333,7 +323,7 @@ extern int pthread_yield (void);
 /* extern int pthread_setcanceltype (int __type, int *__oldtype); */
 
 /* /\* Cancel THREAD immediately or at the next possibility.  *\/ */
- extern int pthread_cancel (pthread_t __th);
+/* extern int pthread_cancel (pthread_t __th); */
 
 /* /\* Test for pending cancellation for the current thread and terminate */
 /*    the thread as per pthread_exit(PTHREAD_CANCELED) if it has been */
@@ -370,13 +360,6 @@ extern int __VERIFIER_mutex_lock (pthread_mutex_t *__mutex);
 extern int __VERIFIER_mutex_unlock (pthread_mutex_t *__mutex);
 #define pthread_mutex_unlock __VERIFIER_mutex_unlock
 
-
-
-
-extern int pthread_mutex_timedlock (pthread_mutex_t *__restrict __mutex,
-				    const struct timespec *__restrict
-				    __abstime);
-				    
 /* /\* Get the priority ceiling of MUTEX.  *\/ */
 /* extern int pthread_mutex_getprioceiling (const pthread_mutex_t * */
 /* 					 __restrict __mutex, */
@@ -393,10 +376,10 @@ extern int pthread_mutex_timedlock (pthread_mutex_t *__restrict __mutex,
 
 /* /\* Initialize mutex attribute object ATTR with default attributes */
 /*    (kind is PTHREAD_MUTEX_TIMED_NP).  *\/ */
- extern int pthread_mutexattr_init (pthread_mutexattr_t *__attr);
+/* extern int pthread_mutexattr_init (pthread_mutexattr_t *__attr); */
 
 /* /\* Destroy mutex attribute object ATTR.  *\/ */
- extern int pthread_mutexattr_destroy (pthread_mutexattr_t *__attr);
+/* extern int pthread_mutexattr_destroy (pthread_mutexattr_t *__attr); */
 
 /* /\* Get the process-shared flag of the mutex attribute ATTR.  *\/ */
 /* extern int pthread_mutexattr_getpshared (const pthread_mutexattr_t * */
@@ -414,7 +397,7 @@ extern int pthread_mutex_timedlock (pthread_mutex_t *__restrict __mutex,
 /* /\* Set the mutex kind attribute in *ATTR to KIND (either PTHREAD_MUTEX_NORMAL, */
 /*    PTHREAD_MUTEX_RECURSIVE, PTHREAD_MUTEX_ERRORCHECK, or */
 /*    PTHREAD_MUTEX_DEFAULT).  *\/ */
- extern int pthread_mutexattr_settype (pthread_mutexattr_t *__attr, int __kind) ;
+/* extern int pthread_mutexattr_settype (pthread_mutexattr_t *__attr, int __kind) ; */
 
 /* /\* Return in *PROTOCOL the mutex protocol attribute in *ATTR.  *\/ */
 /* extern int pthread_mutexattr_getprotocol (const pthread_mutexattr_t * */
@@ -500,30 +483,36 @@ extern int pthread_mutex_timedlock (pthread_mutex_t *__restrict __mutex,
 
 /* /\* Initialize condition variable COND using attributes ATTR, or use */
 /*    the default values if later is NULL.  *\/ */
- extern int pthread_cond_init (pthread_cond_t *__restrict __cond, 
- 			      const pthread_condattr_t *__restrict __cond_attr);
+/* extern int pthread_cond_init (pthread_cond_t *__restrict __cond, */
+/* 			      const pthread_condattr_t *__restrict __cond_attr) */
+/*      ; */
 
 /* /\* Destroy condition variable COND.  *\/ */
- extern int pthread_cond_destroy (pthread_cond_t *__cond);
+/* extern int pthread_cond_destroy (pthread_cond_t *__cond) */
+/*      ; */
 
 /* /\* Wake up one thread waiting for condition variable COND.  *\/ */
- extern int pthread_cond_signal (pthread_cond_t *__cond);
+/* extern int pthread_cond_signal (pthread_cond_t *__cond) */
+/*      ; */
 
 /* /\* Wake up all threads waiting for condition variables COND.  *\/ */
- extern int pthread_cond_broadcast (pthread_cond_t *__cond);
+/* extern int pthread_cond_broadcast (pthread_cond_t *__cond) */
+/*      ; */
 
 /* /\* Wait for condition variable COND to be signaled or broadcast. */
 /*    MUTEX is assumed to be locked before. *\/ */
- extern int pthread_cond_wait (pthread_cond_t *__restrict __cond,
- 			      pthread_mutex_t *__restrict __mutex);
+/* extern int pthread_cond_wait (pthread_cond_t *__restrict __cond, */
+/* 			      pthread_mutex_t *__restrict __mutex) */
+/*      ; */
 
 /* /\* Wait for condition variable COND to be signaled or broadcast until */
 /*    ABSTIME.  MUTEX is assumed to be locked before.  ABSTIME is an */
 /*    absolute time specification; zero is the beginning of the epoch */
 /*    (00:00:00 GMT, January 1, 1970). *\/ */
- extern int pthread_cond_timedwait (pthread_cond_t *__restrict __cond, 
- 				   pthread_mutex_t *__restrict __mutex, 
- 				   const struct timespec *__restrict __abstime);
+/* extern int pthread_cond_timedwait (pthread_cond_t *__restrict __cond, */
+/* 				   pthread_mutex_t *__restrict __mutex, */
+/* 				   const struct timespec *__restrict __abstime) */
+/*      ; */
 
 /* /\* Functions for handling condition variable attributes.  *\/ */
 
@@ -546,6 +535,7 @@ extern int pthread_mutex_timedlock (pthread_mutex_t *__restrict __mutex,
 /* 					int __pshared) ; */
 
 
+
 /* /\* Functions for handling thread-specific data.  *\/ */
 
 /* /\* Create a key value identifying a location in the thread-specific */
@@ -555,17 +545,18 @@ extern int pthread_mutex_timedlock (pthread_mutex_t *__restrict __mutex,
 /*    DESTR_FUNCTION is not called if the value associated is NULL when */
 /*    the key is destroyed.  *\/ */
  extern int pthread_key_create (pthread_key_t *__key, 
-			       void (*__destr_function) (void *));
+ 			       void (*__destr_function) (void *)); 
 
 /* /\* Destroy KEY.  *\/ */
- extern int pthread_key_delete (pthread_key_t __key);
+/* extern int pthread_key_delete (pthread_key_t __key) ; */
 
 /* /\* Return current value of the thread-specific data slot identified by KEY.  *\/ */
- extern void *pthread_getspecific (pthread_key_t __key); 
+ extern void *pthread_getspecific (pthread_key_t __key) ;
 
 /* /\* Store POINTER in the thread-specific data slot identified by KEY. *\/ */
  extern int pthread_setspecific (pthread_key_t __key, 
- 				const void *__pointer); 
+ 				const void *__pointer) ; 
+
 
 /* /\* Install handlers to be called when a new process is created with FORK. */
 /*    The PREPARE handler is called in the parent process just before performing */
@@ -609,7 +600,7 @@ extern int __VERIFIER_barrier_wait (pthread_barrier_t *__barrier);
 /* extern int pthread_barrier_destroy (pthread_barrier_t *__barrier); */
 extern int __VERIFIER_barrier_destroy (pthread_barrier_t *__barrier);
 #define pthread_barrier_destroy __VERIFIER_barrier_destroy
- 
+
 #ifdef __cplusplus
 }
 #endif

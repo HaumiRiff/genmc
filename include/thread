@@ -129,13 +129,20 @@ return
 _VSTD::forward<_Tp>(__t);
 }
 
-
+template<class _Tp>
+class __thread_specific_ptr;
 
 class _LIBCPP_TYPE_VIS __thread_struct;
 
 class _LIBCPP_HIDDEN __thread_struct_imp;
 
 class __assoc_sub_state;
+
+_LIBCPP_FUNC_VIS __thread_specific_ptr<__thread_struct>
+&
+
+__thread_local_data();
+
 
 template<class _Tp>
 class __thread_specific_ptr {
@@ -183,10 +190,21 @@ public:
     void set_pointer(pointer __p);
 };
 
-__thread_specific_ptr<__thread_struct>&
-__thread_local_data()
-{
-    static __thread_specific_ptr<__thread_struct> __p;
+template<class _Tp>
+void
+__thread_specific_ptr<_Tp>::set_pointer(pointer __p) {
+    //  _LIBCPP_ASSERT(get() == nullptr,
+    //               "Attempting to overwrite thread local data");
+    __libcpp_tls_set(__key_, __p);
+}
+
+
+_LIBCPP_FUNC_VIS __thread_specific_ptr<__thread_struct>
+&
+
+__thread_local_data() {
+    // static __thread_specific_ptr<__thread_struct> __p;
+    __thread_specific_ptr < __thread_struct > __p;
     return __p;
 }
 
