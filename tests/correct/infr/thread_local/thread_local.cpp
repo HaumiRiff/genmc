@@ -1,25 +1,15 @@
 #include <stdio.h>
-#include <thread>
 
-thread_local int s = 0;
+struct checker {
+   
+    const char* name;
+    checker(const char* name) : name(name) { printf("%s :ctor\n", name); }
+    ~checker() { printf("%s : dtor\n", name); } 
+};
 
-void addThreadLocal(int s1){
+thread_local checker t1("t1");
 
-  s += s1;
-  printf("*** %d", s);
+int main() {
 
-}
-
-int main(){
-
-  std::thread t1(addThreadLocal, 1); 
-  std::thread t2(addThreadLocal, 2); 
-  std::thread t3(addThreadLocal, 3); 
-  std::thread t4(addThreadLocal, 4); 
-
-  t1.join();
-  t2.join();
-  t3.join();
-  t4.join();
-
+	printf("test %s\n", t1.name);  
 }
