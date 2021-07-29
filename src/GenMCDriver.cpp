@@ -151,7 +151,7 @@ bool GenMCDriver::isSchedulable(int thread) const
 {
 	auto &thr = getEE()->getThrById(thread);
 	return !thr.ECStack.empty() && !thr.isBlocked() &&
-		!llvm::isa<ThreadFinishLabel>(getGraph().getLastThreadLabel(thread));
+		(!llvm::isa<ThreadFinishLabel>(getGraph().getLastThreadLabel(thread)) || !llvm::isa<FreeLabel>(getGraph().getLastThreadLabel(thread)));
 }
 
 bool GenMCDriver::schedulePrioritized()

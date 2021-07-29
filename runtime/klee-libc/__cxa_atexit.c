@@ -36,6 +36,6 @@ static void RunAtExit(void)  {
   return 0;
 }
 
-int __cxa_thread_atexit_impl(void (*fn)(void*), void *arg, void *dso_handle) {
+int __cxa_thread_atexit(void (*fn)(void*), void *arg, void *dso_handle) {
   return __cxa_atexit(fn, arg, dso_handle);
 }

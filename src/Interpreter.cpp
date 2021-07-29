@@ -428,9 +428,30 @@ void Interpreter::collectStaticAddresses(Module *M)
 
 		/* Record whether this is a thread local variable or not */
 		if (v.isThreadLocal()) {
-			for (auto i = 0u; i < typeSize; i++)
-				threadLocalVars[ptr + i] = getConstantValue(v.getInitializer());
-			continue;
+			for (auto i = 0u; i < typeSize; i++) {
+			//FIXME check what value in struct/?put some def value for struct type, what type in v?
+				if(StructType *STy = dyn_cast<StructType>(v.getInitializer()->getType())) {
+				   	  GenericValue Result;
+				 	  
+					  unsigned int elemNum = STy->getNumElements();
+       					  Result.AggregateVal.resize(elemNum);
+       					  
+        				  for (unsigned int i = 0; i < elemNum; ++i) {
+          					Type *ElemTy = STy->getElementType(i);
+          				
+          					if (ElemTy->isIntegerTy())
+            						Result.AggregateVal[i].IntVal = APInt(ElemTy->getPrimitiveSizeInBits(), 0);
+            						
+          					else if (ElemTy->isAggregateType()) {
+              						const Constant *ElemUndef = UndefValue::get(ElemTy);
+              						Result.AggregateVal[i] = getConstantValue(ElemUndef);
+           	 			  }
+          			 }
+				 threadLocalVars[ptr + i] = std::move(Result);
+				}
+				else threadLocalVars[ptr + i] = getConstantValue(v.getInitializer());
+				continue;
+			}
 		}
 
 		/* Update the name for this global. We cheat a bit since we will use this
